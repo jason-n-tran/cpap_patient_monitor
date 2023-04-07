@@ -6,3 +6,6 @@ flask
 pymodm
 dnspython
 Pillow
+numpy
+matplotlib
+scipy
