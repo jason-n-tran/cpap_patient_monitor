@@ -3,10 +3,9 @@ from tkinter import ttk
 from tkinter import filedialog as fd
 from PIL import Image, ImageTk
 from cpap_measurements import analysis_driver
-import matplotlib.pyplot
+import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-matplotlib.pyplot.switch_backend('TkAgg')
 
 
 def requirements_met(mrn, room_number):
