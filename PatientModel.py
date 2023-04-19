@@ -8,4 +8,5 @@ class Patient(MongoModel):
     CPAP_pressure = fields.ListField()
     breath_rate = fields.ListField()
     apnea_count = fields.ListField()
-    flow_image: fields.ListField()
+    flow_image = fields.ListField()
+    timestamp = fields.ListField()
