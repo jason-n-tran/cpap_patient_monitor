@@ -6,6 +6,10 @@ from cpap_measurements import analysis_driver
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import requests
+
+
+server = "http://127.0.0.1:5000"
 
 
 def requirements_met(mrn, room_number):
@@ -74,6 +78,27 @@ def validate_pressure(pressure):
                 return "CPAP Pressure is not between 4 and 25", False
 
 
+def create_json(mrn, room, name, pressure, rate, apnea):
+    print(name)
+    print(pressure)
+    print(rate)
+    print(apnea)
+    patient = {"patient_name": name,
+               "patient_mrn": mrn,
+               "room_number": room,
+               "CPAP_pressure": pressure,
+               "breath_rate": rate,
+               "apnea_count": apnea,
+               #"flow_image": image
+                }
+    return patient
+
+
+def upload(patient):
+    r = requests.post(server + "/new_patient", json=patient)
+    return r.status_code, r.text
+
+
 def query_server():
     return
 
@@ -99,14 +124,21 @@ def set_up_window():
         None
         """
         print("Ok clicked")
-        mrn = mrn_value.get()
-        room_number = room_value.get()
+        mrn = int(mrn_value.get())
+        room_number = int(room_value.get())
         msg, met = requirements_met(mrn, room_number)
         if (met):
             patient_name = name_value.get()
             pressure = pressure_value.get()
             msg, valid_pressure = validate_pressure(pressure)
             if (valid_pressure):
+                breath_rate = breathrate_value.cget("text")
+                apnea_count = apnea_value.cget("text")
+                patient = create_json(mrn, room_number, patient_name, pressure,
+                                      breath_rate, apnea_count)
+                status_code, answer = upload(patient)
+                print(status_code)
+                print(answer)
                 msg_label.configure(text=msg)
                 tk.messagebox.showinfo(title="Success", message=msg)
                 mrn_entry.configure(state=tk.DISABLED)
