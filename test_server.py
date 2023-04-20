@@ -184,6 +184,21 @@ def test_add_patient_driver(in_data, msg, status):
     assert answer1 == status
 
 
-results = Patient.objects.raw({})
-for item in results:
-    item.delete()
+@pytest.mark.parametrize("mrn, result, code",
+                         [(123, 10, 200),
+                          (234, "Patient not in database", 400)
+                          ])
+def test_get_pressure_driver(mrn, result, code):
+    from server import get_pressure_driver
+    answer0, answer1 = get_pressure_driver(mrn)
+    assert answer0 == result
+    assert answer1 == code
+
+
+@pytest.mark.parametrize("mrn, pressure",
+                         [(123, 10)
+                          ])
+def test_get_pressure(mrn, pressure):
+    from server import get_pressure
+    answer = get_pressure(mrn)
+    assert answer == pressure

@@ -311,14 +311,14 @@ def update_patient(mrn, in_data, date):
 @app.route("/CPAP_query/<mrn>", methods=["GET"])
 def get_pressure_handler(mrn):
     """
-    GET route to obtain patient's information. This function implements
-    a variable URL in which the server returns patient information. The
-    variable URL will contain the MRN of the patient of interest. This
-    MRN is passed to a driver function that will retrieve the data for
-    this function to return.
+    GET route to obtain CPAP pressure.
+    This function implements a variable URL in which the server returns
+    a patient's latest CPAP pressure. The variable URL will contain the MRN of
+    the patient of interest. This MRN is passed to a driver function that will
+    retrieve the data for this function to return.
     Parameters
     ----------
-    patient_mrn : integer or string
+    mrn : integer or string
         patient's medical record number
     Returns
     -------
@@ -333,12 +333,12 @@ def get_pressure_handler(mrn):
 
 def get_pressure_driver(mrn):
     """
-    Implements the 'patient/results/<patient_mrn>' route
+    Implements the '/CPAP_query/<mrn>' route
     This function performs the data validation and implementation for the
-    `patient/results/<patient_mrn>` route which retrieves a patient's
-    information. It first validates that the patient MRN exists in the
+    `/CPAP_query/<mrn>` route which retrieves a patient's CPAP pressure
+    data. It first validates that the patient MRN exists in the
     database. It then calls another function to retrieve the patient's
-    information and returns the retrieved dictionary with status code 200
+    information and returns the retrieved integer with status code 200
     Parameters
     ----------
     mrn : integer
@@ -362,21 +362,17 @@ def get_pressure_driver(mrn):
 
 def get_pressure(mrn):
     """
+    Obtains pressure data for specified patient.
     Takes a given patient's medical record number and obtains that patient's
-    open requests and completed test lists from the database. Reformats key
-    for request_date to request_timestamp and returns combined information.
+    latest CPAP pressure value from the array in the database.
     Parameters
     ----------
     mrn : integer
         patient medical record number
     Returns
     -------
-    dictionary
-        {
-         "patient_mrn": <medical_record_number>,
-         "completed_tests": <list_of_test_dictionaries>,
-         "open requests": <list_of_request_dictionaries>
-        }
+    integer
+        latest CPAP pressure
     """
     x = Patient.objects.raw({"_id": mrn}).first()
     return x.CPAP_pressure[-1]
