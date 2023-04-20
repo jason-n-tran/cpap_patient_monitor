@@ -11,6 +11,10 @@ from datetime import datetime
 
 # Create an instance of the Flask server
 app = Flask(__name__)
+# Dictionary to hold requested updates from the monitoring side to CPAP
+#   pressures.  Key will be a room number (integer).  Value will be an integer
+#   containing the newly requested CPAP pressure.
+cpap_pressure_updates = {}
 
 
 def init_server():
@@ -376,6 +380,78 @@ def get_pressure(mrn):
     """
     x = Patient.objects.raw({"_id": mrn}).first()
     return x.CPAP_pressure[-1]
+
+
+@app.route("/new_cpap_pressure/<room_number>/<new_value>", methods=["GET"])
+def post_new_cpap_pressure(room_number, new_value):
+    """Receives requests for updated CPAP pressures for a specific room
+
+    The monitoring station should have the ability to request an updated
+    CPAP pressure for a specific room.  This route receives this request.  It
+    uses a variable URL to receive the room number and updated value for the
+    CPAP pressure.  The room number and updated CPAP pressure will be received
+    as strings from the variable URL and these strings should contain an
+    integer value.  If the inputs do not pass validation, an error message is
+    returned along with a 400 status code.  if the inputs do pass validation,
+    the numeric strings are converted to integers and added to the
+    "cpap_pressure_updates" dictionary using the room number as the key and
+    the new value as the value.  The patient-side client can then call a route
+    which will access this "cpap_pressure_updates" dictionary and see if a new
+    value is available for a specific room number.
+
+    Parameters
+    ----------
+    room_number : string
+        A numeric string containing the room number as an integer that should
+        receive an updated CPAP pressure
+    new_value : string
+        A numeric string containing an updated CPAP pressure as an integer
+
+    Returns
+    -------
+    string, integer
+        A message about the success or failure of the route and a status code
+
+    """
+    if validate_new_cpap_pressure_inputs(room_number, new_value) is False:
+        return "Bad value for room number or new value", 400
+    cpap_pressure_updates[int(room_number)] = int(new_value)
+    print(cpap_pressure_updates)
+    return "Room number {} CPAP pressure updated to {}"\
+        .format(int(room_number), int(new_value)), 200
+
+
+def validate_new_cpap_pressure_inputs(room_number, new_value):
+    """Validates input to the "/new_cpap_pressure/<room_number>/<new_value>"
+    route
+
+    The "/new_cpap_pressure/<room_number>/<new_value>" route is a GET request
+    with a variable URL.  The "room_number" and "new_value" should contain
+    integers as a string from the variable URL.  This function attempts to
+    convert these strings into integers.  If either string does not contain an
+    integer, the ValueError exception will be raised and captured and a value
+    of False will be returned.  If no exceptions are raised, the strings must
+    contain the desired integers, and a value of True is returned.
+
+    Parameters
+    ----------
+    room_number : string
+        The portion of the variable URL for the room number for validation
+    new_value : string
+        The portion of the variable URL for the new CPAP pressure for
+        validation
+
+    Returns
+    -------
+    boolean
+        True if validation is successful, False if not
+    """
+    try:
+        room_no = int(room_number)
+        new_value = int(new_value)
+    except ValueError:
+        return False
+    return True
 
 
 if __name__ == "__main__":
