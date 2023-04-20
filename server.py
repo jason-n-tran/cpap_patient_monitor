@@ -308,6 +308,76 @@ def update_patient(mrn, in_data, date):
     return saved_patient
 
 
+@app.route("/CPAP_query/<mrn>", methods=["GET"])
+def get_pressure_handler(mrn):
+    """
+    GET route to obtain CPAP pressure.
+    This function implements a variable URL in which the server returns
+    a patient's latest CPAP pressure. The variable URL will contain the MRN of
+    the patient of interest. This MRN is passed to a driver function that will
+    retrieve the data for this function to return.
+    Parameters
+    ----------
+    mrn : integer or string
+        patient's medical record number
+    Returns
+    -------
+    answer : string
+        Response message indicating type of error
+    status_code : integer
+        200 if successful and 400 if failed
+    """
+    answer, status = get_pressure_driver(mrn)
+    return jsonify(answer), status
+
+
+def get_pressure_driver(mrn):
+    """
+    Implements the '/CPAP_query/<mrn>' route
+    This function performs the data validation and implementation for the
+    `/CPAP_query/<mrn>` route which retrieves a patient's CPAP pressure
+    data. It first validates that the patient MRN exists in the
+    database. It then calls another function to retrieve the patient's
+    information and returns the retrieved integer with status code 200
+    Parameters
+    ----------
+    mrn : integer
+        patient medical record number
+    Returns
+    -------
+    string
+        Response message indicating type of error or patient info if no error
+    integer
+        200 if successful and 400 if failed
+    """
+    # Validate input
+    mrn_validation = does_patient_exist_in_db(int(mrn))
+    if mrn_validation is not True:
+        return "Patient not in database", 400
+    # Do the work
+    pressure = get_pressure(int(mrn))
+    # Return an answer
+    return pressure, 200
+
+
+def get_pressure(mrn):
+    """
+    Obtains pressure data for specified patient.
+    Takes a given patient's medical record number and obtains that patient's
+    latest CPAP pressure value from the array in the database.
+    Parameters
+    ----------
+    mrn : integer
+        patient medical record number
+    Returns
+    -------
+    integer
+        latest CPAP pressure
+    """
+    x = Patient.objects.raw({"_id": mrn}).first()
+    return x.CPAP_pressure[-1]
+
+
 if __name__ == "__main__":
     init_server()
     app.run()

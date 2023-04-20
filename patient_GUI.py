@@ -156,10 +156,6 @@ def create_json(mrn, room, name, pressure, rate, apnea, image):
     return patient
 
 
-def query_server():
-    return
-
-
 def set_up_window():
 
     fig = Figure(figsize=(14, 6))
@@ -264,6 +260,22 @@ def set_up_window():
         canvas = FigureCanvasTkAgg(fig, root)
         canvas.draw()
         canvas.get_tk_widget().grid(column=0, row=8, columnspan=100)
+
+    def query_server():
+        mrn = mrn_value.get()
+        room_number = room_value.get()
+        msg, met = requirements_met(mrn, room_number)
+        if (met):
+            r = requests.get(server + "/CPAP_query/{}".format(mrn))
+            print(r.status_code)
+            print(r.text)
+            pressure_entry.delete(0, tk.END)
+            pressure_entry.insert(0, "{}".format(r.text))
+            a = pressure_entry.get()
+            a = a[:-1]
+            pressure_entry.delete(0, tk.END)
+            pressure_entry.insert(0, a)
+        root.after(30000, query_server)
 
     root = tk.Tk()
     root.title("Patient GUI")
