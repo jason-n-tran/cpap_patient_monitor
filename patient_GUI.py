@@ -183,8 +183,8 @@ def set_up_window():
         None
         """
         print("Ok clicked")
-        mrn = int(mrn_value.get())
-        room_number = int(room_value.get())
+        mrn = mrn_value.get()
+        room_number = room_value.get()
         msg, met = requirements_met(mrn, room_number)
         if (met):
             patient_name = name_value.get()
@@ -194,8 +194,9 @@ def set_up_window():
                 breath_rate = breathrate_value.cget("text")
                 apnea_count = apnea_value.cget("text")
                 image = plot_to_b64(fig)
-                patient = create_json(mrn, room_number, patient_name, pressure,
-                                      breath_rate, apnea_count, image)
+                patient = create_json(int(mrn), int(room_number), patient_name,
+                                      pressure, breath_rate, apnea_count,
+                                      image)
                 r = requests.post(server + "/add_patient", json=patient)
                 print(r.status_code)
                 print(r.text)
@@ -210,11 +211,14 @@ def set_up_window():
             msg_label.configure(text=msg)
             tk.messagebox.showerror(title="Error", message=msg)
 
-    def cancel_btn_cmd():
+    def reset_btn_cmd():
         """
-        Closes GUI
+        Resets GUI
         This function destroys the ttk root which effectively closes the
-        patient side graphical user interface.
+        patient side graphical user interface before rerunning the
+        set_up_window function to open the GUI with a clean slate. Any entries
+        and displayed data are removed and grayed out boxes are available for
+        new entries and data about the previous patient is removed.
 
         Parameters
         ----------
@@ -225,6 +229,7 @@ def set_up_window():
         None
         """
         root.destroy()
+        set_up_window()
 
     def display_CPAP():
         """
@@ -311,8 +316,8 @@ def set_up_window():
 
     ok_button = ttk.Button(root, text="Upload", command=ok_btn_cmd)
     ok_button.grid(column=1, row=51)
-    cancel_button = ttk.Button(root, text="Cancel", command=cancel_btn_cmd)
-    cancel_button.grid(column=2, row=51)
+    reset_button = ttk.Button(root, text="Reset", command=reset_btn_cmd)
+    reset_button.grid(column=2, row=51)
 
     root.after(30000, query_server)
 
