@@ -6,6 +6,12 @@ from cpap_measurements import analysis_driver
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import requests
+import io
+import base64
+
+
+server = "http://127.0.0.1:5000"
 
 
 def requirements_met(mrn, room_number):
@@ -74,11 +80,89 @@ def validate_pressure(pressure):
                 return "CPAP Pressure is not between 4 and 25", False
 
 
+def plot_to_b64(fig):
+    """
+    Converts matplotlib figure to base64 encoded string
+    This function takes a matplotlib figure object and saves it to an IO
+    buffer in jpg format. It then uses base64 encoding to convert the image to
+    base64 and finally formats it as a string to be sent in json serialization.
+
+    Parameters
+    ----------
+    fig : matplotlib figure
+        figure containing CPAP time vs. flow chart
+
+    Returns
+    -------
+    b64_string : string
+        base64 encoded string of image
+    """
+    my_stringIObytes = io.BytesIO()
+    fig.savefig(my_stringIObytes, format='jpg')
+    my_stringIObytes.seek(0)
+    my_base64_jpgData = base64.b64encode(my_stringIObytes.read())
+    b64_string = str(my_base64_jpgData, encoding='utf-8')
+    # image_bytes = base64.b64decode(my_base64_jpgData)
+    # image_buf = io.BytesIO(image_bytes)
+    # i = matplotlib.image.imread(image_buf, format='JPG')
+    # matplotlib.pyplot.imshow(i, interpolation='nearest')
+    # matplotlib.pyplot.show()
+    return b64_string
+
+
+def create_json(mrn, room, name, pressure, rate, apnea, image):
+    """
+    Creates dictionary of patient information
+    This function takes the information entered from the patient GUI and
+    formats it into a dictionary to be sent with json later. The dictionary is
+    formatted as
+        patient = {"patient_name": <patient_name>,
+                    "patient_mrn": <medical_record_number>,
+                    "room_number": <room_number>,
+                    "CPAP_pressure": <CPAP_pressure>,
+                    "breath_rate": <breath_rate>,
+                    "apnea_count": <apnea_count>,
+                    "flow_image": <flow_b64_string>}
+
+    Parameters
+    ----------
+    mrn : integer or string
+        patient's medical record number
+    room : integer or string
+        patient's room number
+    name : string
+        patient's name
+    pressure : integer or string
+        patient's entered CPAP pressure
+    rate : float or string
+        patient's breathing rate as calculated from file
+    apnea : integer or string
+        number of apnea events in CPAP data
+    image : string
+        base64 encoded string of CPAP flow vs. time plot
+
+    Returns
+    -------
+    patient : dictionary
+        dictionary containing entries formatted as specified above
+    """
+    patient = {"patient_name": name,
+               "patient_mrn": mrn,
+               "room_number": room,
+               "CPAP_pressure": pressure,
+               "breath_rate": rate,
+               "apnea_count": apnea,
+               "flow_image": image}
+    return patient
+
+
 def query_server():
     return
 
 
 def set_up_window():
+
+    fig = Figure(figsize=(14, 6))
 
     def ok_btn_cmd():
         """
@@ -99,14 +183,22 @@ def set_up_window():
         None
         """
         print("Ok clicked")
-        mrn = mrn_value.get()
-        room_number = room_value.get()
+        mrn = int(mrn_value.get())
+        room_number = int(room_value.get())
         msg, met = requirements_met(mrn, room_number)
         if (met):
             patient_name = name_value.get()
             pressure = pressure_value.get()
             msg, valid_pressure = validate_pressure(pressure)
             if (valid_pressure):
+                breath_rate = breathrate_value.cget("text")
+                apnea_count = apnea_value.cget("text")
+                image = plot_to_b64(fig)
+                patient = create_json(mrn, room_number, patient_name, pressure,
+                                      breath_rate, apnea_count, image)
+                r = requests.post(server + "/add_patient", json=patient)
+                print(r.status_code)
+                print(r.text)
                 msg_label.configure(text=msg)
                 tk.messagebox.showinfo(title="Success", message=msg)
                 mrn_entry.configure(state=tk.DISABLED)
@@ -160,7 +252,6 @@ def set_up_window():
             apnea_value.configure(text=apnea_count, foreground="red")
         else:
             apnea_value.configure(text=apnea_count, foreground="black")
-        fig = Figure(figsize=(14, 6))
         a = fig.add_subplot(111)
         a.plot(time, flow)
         a.set_xlabel('Time (seconds)')
