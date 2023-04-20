@@ -19,26 +19,28 @@ def init_server():
     operation.  The logging system is configured.  A connection is created
     to the MongoDB database.
     """
-    logging.basicConfig(filename="server.log", filemode='w',
+    logging.basicConfig(filename="log_file.log", filemode='w',
                         level=logging.INFO)
     connect("mongodb+srv://{}:{}@cluster0.ja8jerw.mongodb.net/final"
             "?retryWrites=true&w=majority"
             .format(mongodb_acct, mongodb_pswd), ssl_cert_reqs=ssl.CERT_NONE)
 
 
-@app.route("/new_patient", methods=["POST"])
-def new_patient_handler():
+@app.route("/add_patient", methods=["POST"])
+def add_patient_handler():
     """
+    Flask Handler for /add_patient route
     POST route to receive information about a new patient and add the
     patient to the database. This "Flask handler" function receives a POST
     request to add a new patient to the database. The POST request should
     receive a dictionary encoded as a JSON string in the following format:
-        {"patient_mrn": <medical_record_number>,
-         "attending_email": <attending_email>,
-         "patient_age": <patient_age>}
-    <medical_record_number> and <patient_age> can be an integer, numeric
-    string or a string with letters and numbers. <attending_email> will be
-    a string.
+        {"patient_name": <patient_name>,
+        "patient_mrn": <medical_record_number>,
+        "room_number": <room_number>,
+        "CPAP_pressure": <CPAP_pressure>,
+        "breath_rate": <breath_rate>,
+        "apnea_count": <apnea_count>,
+        "flow_image": <flow_b64_string>}
     Receives the dictionary sent from POST request and calls on patient
     driver to validate dictionary and add to database. Returns a response
     message and corresponding status code.
@@ -52,55 +54,62 @@ def new_patient_handler():
     # Receive data from POST request
     in_data = request.get_json()
     # Call other functions to do the work
-    answer, status_code = new_patient_driver(in_data)
+    answer, status_code = add_patient_driver(in_data)
     # Return a response
     return jsonify(answer), status_code
 
 
-def new_patient_driver(in_data):
+def add_patient_driver(in_data):
     """
-    Implements the 'patient/new_patient' route
+    Implements the 'add_patient' route
     This function performs the data validation and implementation for the
-    `patient/new_patient` route which adds a new patient to the database. It
+    `add_patient` route which adds a new patient to the database. It
     first calls a function that validates that the input data to the route is a
     dictionary that has the necessary keys and value data types.  If the
     necessary information does not exist, the function returns an error message
-    and a status code of 400.  Otherwise, another function is called and sent
-    the necessary information to add a new patient to the database.  A success
+    and a status code of 400.  Otherwise, it checks whether the patient already
+    exists in the database. If not, another function is called and sent
+    the necessary information to add a new patient to the database. If the
+    patient already exists, the information will be updated. A success
     message and a 200 status code is then returned.
     Parameters
     ----------
     in_data : dictionary
         Patient dictionary in the format:
-        {"patient_mrn": <medical_record_number>,
-         "attending_email": <attending_email>,
-         "patient_age": <patient_age>}
+        {"patient_name": <patient_name>,
+        "patient_mrn": <medical_record_number>,
+        "room_number": <room_number>,
+        "CPAP_pressure": <CPAP_pressure>,
+        "breath_rate": <breath_rate>,
+        "apnea_count": <apnea_count>,
+        "flow_image": <flow_b64_string>}
     Returns
     -------
     validation : string
         Response message indicating type of error or "Patient successfully
-        added" if no error
+        updated" if no error
     : integer
         200 if successful and 400 if failed
     """
     # Validate input
-    expected_keys = ["patient_mrn", "room_number"]
-    expected_types = [int, int]
+    expected_keys = ["patient_mrn", "room_number", "patient_name",
+                     "CPAP_pressure", "breath_rate", "apnea_count",
+                     "flow_image"]
+    expected_types = [int, int, str, int, float, int, str]
     validation = validate_input_data_generic(in_data, expected_keys,
                                              expected_types)
     if validation is not True:
         return validation, 400
     does_id_exist = does_patient_exist_in_db(int(in_data["patient_mrn"]))
+    date = current_time()
     if does_id_exist is False:
-        print(in_data["patient_mrn"])
         # Do the work
-        new_patient_to_db(in_data)
+        new_patient_to_db(in_data, date)
         # Return an answer
         return "New patient created", 200
     else:
-        print(3)
         # Do the work
-        update_patient(int(in_data["patient_mrn"]), in_data)
+        update_patient(int(in_data["patient_mrn"]), in_data, date)
         # Return an answer
         return "Patient successfully updated", 200
 
@@ -117,6 +126,7 @@ def validate_input_data_generic(in_data, expected_keys, expected_types):
     the value can be converted to a valid integer. An error message is returned
     if the data is not a dictionary, a key is missing or there is an invalid
     data type. If keys and data types are correct, a value of True is returned.
+    It ignores empty strings and checks that floats could be numeric strings.
     Parameters
     ----------
     in_data : dict
@@ -136,7 +146,15 @@ def validate_input_data_generic(in_data, expected_keys, expected_types):
     for key, value_type in zip(expected_keys, expected_types):
         if key not in in_data:
             return "Key {} is missing from input".format(key)
+        if in_data[key] == "":
+            continue
         if type(in_data[key]) is not value_type:
+            if value_type == float:
+                try:
+                    float(in_data[key])
+                    continue
+                except ValueError:
+                    return "Key {} is not an int or numeric string".format(key)
             if value_type == int:
                 if str(in_data[key]).isnumeric() is False:
                     return "Key {} is not an int or numeric string".format(key)
@@ -154,11 +172,14 @@ def does_patient_exist_in_db(mrn):
     exception will be thrown which is captured in a try/except block, allowing
     the function to return False, indicating that the record does not exist
     in the database.  If the record does exist, the function will return True.
-    Args:
-        patient_id (int): patient medical record number to search for in the
-            database
-    Returns:
-        bool: True if patient exists in database, False otherwise
+    Parameters
+    ----------
+    mrn : int
+        patient medical record number to search for in the database
+    Returns
+    ----------
+    bool :
+        True if patient exists in database, False otherwise
     """
     try:
         db_item = Patient.objects.raw({"_id": mrn}).first()
@@ -167,7 +188,45 @@ def does_patient_exist_in_db(mrn):
     return True
 
 
-def new_patient_to_db(in_data):
+def current_time():
+    """
+    Returns the current time formatted as "Year-month-day hour:minute:seconds"
+    Parameters
+    ----------
+    None
+    Returns
+    -------
+    string:
+        current time formatted as "Year-month-day hour:minute:seconds"
+    """
+    return datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+
+
+def new_patient_to_db(in_data, date):
+    """
+    Adds a new patient dictionary to the database
+    This function receives a patient dictionary then adds an entry to the
+    database under the key of the patient's MRN while converting the MRN
+    and age entries to integers. The information sent to the database depends
+    on whether a patient name was entered or if CPAP calculated data was
+    entered or if both were entered. The database is hosted by mongoDB.
+    Parameters
+    ----------
+    patient_dic : dictioanry
+        Patient dictionary in the format:
+        {"patient_name": <patient_name>,
+        "patient_mrn": <medical_record_number>,
+        "room_number": <room_number>,
+        "CPAP_pressure": <CPAP_pressure>,
+        "breath_rate": <breath_rate>,
+        "apnea_count": <apnea_count>,
+        "flow_image": <flow_b64_string>}
+    date : string
+        current time formatted as "Year-month-day hour:minute:seconds"
+    Returns
+    -------
+        None
+    """
     if (in_data["patient_name"] != ""):
         if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
             new_patient = Patient(patient_mrn=in_data["patient_mrn"],
@@ -176,7 +235,9 @@ def new_patient_to_db(in_data):
                                   CPAP_pressure=[int(in_data["CPAP_pressure"]
                                                      )],
                                   breath_rate=[float(in_data["breath_rate"])],
-                                  apnea_count=[int(in_data["apnea_count"])])
+                                  apnea_count=[int(in_data["apnea_count"])],
+                                  flow_image=[str(in_data["flow_image"])],
+                                  timestamp=[date])
         else:
             new_patient = Patient(patient_mrn=in_data["patient_mrn"],
                                   room_number=in_data["room_number"],
@@ -188,14 +249,43 @@ def new_patient_to_db(in_data):
                                   CPAP_pressure=[int(in_data["CPAP_pressure"]
                                                      )],
                                   breath_rate=[float(in_data["breath_rate"])],
-                                  apnea_count=[int(in_data["apnea_count"])])
+                                  apnea_count=[int(in_data["apnea_count"])],
+                                  flow_image=[str(in_data["flow_image"])],
+                                  timestamp=[date])
         else:
             new_patient = Patient(patient_mrn=in_data["patient_mrn"],
                                   room_number=in_data["room_number"])
-    new_patient.save()
+    saved_patient = new_patient.save()
+    return saved_patient
 
 
-def update_patient(mrn, in_data):
+def update_patient(mrn, in_data, date):
+    """
+    Updates existing patient information in database
+    This function receives a patient dictionary then finds the corresponding
+    patient entry in the database from the medical record number. It then
+    updates the information stored based on whether a patient name was entered
+    or if CPAP calculated data was entered or if both were entered. The
+    database is hosted by mongoDB.
+    Parameters
+    ----------
+    mrn : integer
+        patient's medical record number
+    patient_dic : dictioanry
+        Patient dictionary in the format:
+        {"patient_name": <patient_name>,
+        "patient_mrn": <medical_record_number>,
+        "room_number": <room_number>,
+        "CPAP_pressure": <CPAP_pressure>,
+        "breath_rate": <breath_rate>,
+        "apnea_count": <apnea_count>,
+        "flow_image": <flow_b64_string>}
+    date : string
+        current time formatted as "Year-month-day hour:minute:seconds"
+    Returns
+    -------
+        None
+    """
     x = Patient.objects.raw({"_id": mrn}).first()
     if (in_data["patient_name"] != ""):
         if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
@@ -203,6 +293,8 @@ def update_patient(mrn, in_data):
             x.CPAP_pressure.append(int(in_data["CPAP_pressure"]))
             x.breath_rate.append(float(in_data["breath_rate"]))
             x.apnea_count.append(int(in_data["apnea_count"]))
+            x.flow_image.append(str(in_data["flow_image"]))
+            x.timestamp.append(date)
         else:
             x.patient_name = in_data["patient_name"]
     else:
@@ -210,7 +302,10 @@ def update_patient(mrn, in_data):
             x.CPAP_pressure.append(int(in_data["CPAP_pressure"]))
             x.breath_rate.append(float(in_data["breath_rate"]))
             x.apnea_count.append(int(in_data["apnea_count"]))
-    x.save()
+            x.flow_image.append(str(in_data["flow_image"]))
+            x.timestamp.append(date)
+    saved_patient = x.save()
+    return saved_patient
 
 
 if __name__ == "__main__":
