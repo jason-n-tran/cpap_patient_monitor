@@ -184,21 +184,27 @@ def test_add_patient_driver(in_data, msg, status):
     assert answer1 == status
 
 
-@pytest.mark.parametrize("mrn, result, code",
-                         [(123, 10, 200),
-                          (234, "Patient not in database", 400)
+@pytest.mark.parametrize("room, cpap, result, code",
+                         [(123, 10, 10, 200),
+                          (234, "ten", False, 400)
                           ])
-def test_get_pressure_driver(mrn, result, code):
-    from server import get_pressure_driver
-    answer0, answer1 = get_pressure_driver(mrn)
+def test_get_pressure_driver(room, cpap, result, code):
+    from server import get_pressure_driver, post_new_cpap_pressure
+    from server import cpap_pressure_updates
+    cpap_pressure_updates.clear()
+    post_new_cpap_pressure(room, cpap)
+    answer0, answer1 = get_pressure_driver(room)
     assert answer0 == result
     assert answer1 == code
 
 
-@pytest.mark.parametrize("mrn, pressure",
-                         [(123, 10)
+@pytest.mark.parametrize("room, cpap, pressure",
+                         [(123, 10, 10)
                           ])
-def test_get_pressure(mrn, pressure):
-    from server import get_pressure
-    answer = get_pressure(mrn)
+def test_get_pressure(room, cpap, pressure):
+    from server import get_pressure, post_new_cpap_pressure
+    from server import cpap_pressure_updates
+    cpap_pressure_updates.clear()
+    post_new_cpap_pressure(room, cpap)
+    answer = get_pressure(room)
     assert answer == pressure

@@ -200,6 +200,8 @@ def set_up_window():
                 tk.messagebox.showinfo(title="Success", message=msg)
                 mrn_entry.configure(state=tk.DISABLED)
                 room_entry.configure(state=tk.DISABLED)
+                s = requests.get(server + "/new_cpap_pressure/{}/{}"
+                                 .format(room_number, int(pressure) + 1))
             else:
                 msg_label.configure(text=msg)
                 tk.messagebox.showerror(title="Error", message=msg)
@@ -266,15 +268,16 @@ def set_up_window():
         room_number = room_value.get()
         msg, met = requirements_met(mrn, room_number)
         if (met):
-            r = requests.get(server + "/CPAP_query/{}".format(mrn))
+            r = requests.get(server + "/CPAP_query/{}".format(room_number))
             print(r.status_code)
             print(r.text)
-            pressure_entry.delete(0, tk.END)
-            pressure_entry.insert(0, "{}".format(r.text))
-            a = pressure_entry.get()
-            a = a[:-1]
-            pressure_entry.delete(0, tk.END)
-            pressure_entry.insert(0, a)
+            if (r.status_code == 200):
+                pressure_entry.delete(0, tk.END)
+                pressure_entry.insert(0, "{}".format(r.text))
+                a = pressure_entry.get()
+                a = a[:-1]
+                pressure_entry.delete(0, tk.END)
+                pressure_entry.insert(0, a)
         root.after(30000, query_server)
 
     root = tk.Tk()

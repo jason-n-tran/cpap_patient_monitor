@@ -104,7 +104,7 @@ def add_patient_driver(in_data):
                                              expected_types)
     if validation is not True:
         return validation, 400
-    does_id_exist = does_patient_exist_in_db(int(in_data["patient_mrn"]))
+    does_id_exist = does_patient_exist_in_db(int(in_data["room_number"]))
     date = current_time()
     if does_id_exist is False:
         # Do the work
@@ -113,7 +113,7 @@ def add_patient_driver(in_data):
         return "New patient created", 200
     else:
         # Do the work
-        update_patient(int(in_data["patient_mrn"]), in_data, date)
+        update_patient(int(in_data["room_number"]), in_data, date)
         # Return an answer
         return "Patient successfully updated", 200
 
@@ -312,8 +312,8 @@ def update_patient(mrn, in_data, date):
     return saved_patient
 
 
-@app.route("/CPAP_query/<mrn>", methods=["GET"])
-def get_pressure_handler(mrn):
+@app.route("/CPAP_query/<room_number>", methods=["GET"])
+def get_pressure_handler(room_number):
     """
     GET route to obtain CPAP pressure.
     This function implements a variable URL in which the server returns
@@ -331,22 +331,22 @@ def get_pressure_handler(mrn):
     status_code : integer
         200 if successful and 400 if failed
     """
-    answer, status = get_pressure_driver(mrn)
+    answer, status = get_pressure_driver(room_number)
     return jsonify(answer), status
 
 
-def get_pressure_driver(mrn):
+def get_pressure_driver(room_number):
     """
-    Implements the '/CPAP_query/<mrn>' route
+    Implements the '/CPAP_query/<room_number>' route
     This function performs the data validation and implementation for the
-    `/CPAP_query/<mrn>` route which retrieves a patient's CPAP pressure
-    data. It first validates that the patient MRN exists in the
+    `/CPAP_query/<room_number>` route which retrieves a patient's CPAP pressure
+    data. It first validates that the room number exists in the
     database. It then calls another function to retrieve the patient's
     information and returns the retrieved integer with status code 200
     Parameters
     ----------
-    mrn : integer
-        patient medical record number
+    room_number : integer
+        patient room number
     Returns
     -------
     string
@@ -355,16 +355,16 @@ def get_pressure_driver(mrn):
         200 if successful and 400 if failed
     """
     # Validate input
-    mrn_validation = does_patient_exist_in_db(int(mrn))
+    mrn_validation = does_patient_exist_in_db(int(room_number))
     if mrn_validation is not True:
-        return "Patient not in database", 400
+        return False, 400
     # Do the work
-    pressure = get_pressure(int(mrn))
+    pressure = get_pressure(int(room_number))
     # Return an answer
     return pressure, 200
 
 
-def get_pressure(mrn):
+def get_pressure(room_number):
     """
     Obtains pressure data for specified patient.
     Takes a given patient's medical record number and obtains that patient's
@@ -378,8 +378,7 @@ def get_pressure(mrn):
     integer
         latest CPAP pressure
     """
-    x = Patient.objects.raw({"_id": mrn}).first()
-    return x.CPAP_pressure[-1]
+    return cpap_pressure_updates[room_number]
 
 
 @app.route("/new_cpap_pressure/<room_number>/<new_value>", methods=["GET"])
