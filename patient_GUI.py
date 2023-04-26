@@ -13,7 +13,7 @@ import random
 
 
 server = "http://127.0.0.1:5000"
-first_click = True
+cpap_calculated = False
 
 
 def requirements_met(mrn, room_number):
@@ -161,8 +161,8 @@ def create_json(mrn, room, name, pressure, rate, apnea, image):
 def set_up_window():
 
     fig = Figure(figsize=(14, 6))
-    global first_click
-    first_click = True
+    global cpap_calculated
+    cpap_calculated = False
 
     def ok_btn_cmd():
         """
@@ -174,8 +174,9 @@ def set_up_window():
         when the data is uploaded. It deactivates the MRN and room number entry
         boxes while allowing the rest to be changed for future uploads. This
         function also sends a get request to the /new_cpap_pressure/
-        <room_number>/<pressure> route on the first time the button is clicked
-        to randomly update the pressure to a value between 4 and 25 inclusive.
+        <room_number>/<pressure> route if new CPAP calculated data has been
+        selected from a data file to randomly update the pressure to a value
+        between 4 and 25 inclusive.
 
         Parameters
         ----------
@@ -185,7 +186,7 @@ def set_up_window():
         -------
         None
         """
-        global first_click
+        global cpap_calculated
         print("Ok clicked")
         mrn = mrn_value.get()
         room_number = room_value.get()
@@ -205,17 +206,17 @@ def set_up_window():
                 print(r.status_code)
                 print(r.text)
                 msg_label.configure(text=msg)
-                tk.messagebox.showinfo(title="Success", message=msg)
-                if (first_click is True):
-                    mrn_entry.configure(state=tk.DISABLED)
-                    room_entry.configure(state=tk.DISABLED)
+                tk.messagebox.showinfo(title="Success", message=r.text)
+                mrn_entry.configure(state=tk.DISABLED)
+                room_entry.configure(state=tk.DISABLED)
+                if (cpap_calculated):
                     s = requests.get(server + "/new_cpap_pressure/{}/{}"
                                      .format(room_number, random.randint(4, 25)
                                              ))
                     print(s.status_code)
                     print(s.text)
                     root.after(30000, query_server)
-                    first_click = False
+                    cpap_calculated = False
             else:
                 msg_label.configure(text=msg)
                 tk.messagebox.showerror(title="Error", message=msg)
@@ -261,21 +262,24 @@ def set_up_window():
         -------
         None
         """
+        global cpap_calculated
+        cpap_calculated = True
         filename = fd.askopenfilename()
-        tk.messagebox.showinfo(title="File Selected", message=filename)
-        breath_rate, apnea_count, time, flow = analysis_driver(filename)
-        breathrate_value.configure(text=breath_rate)
-        if (apnea_count >= 2):
-            apnea_value.configure(text=apnea_count, foreground="red")
-        else:
-            apnea_value.configure(text=apnea_count, foreground="black")
-        a = fig.add_subplot(111)
-        a.plot(time, flow)
-        a.set_xlabel('Time (seconds)')
-        a.set_ylabel('Flow (cubic meters per second)')
-        canvas = FigureCanvasTkAgg(fig, root)
-        canvas.draw()
-        canvas.get_tk_widget().grid(column=0, row=8, columnspan=100)
+        if (filename != ""):
+            tk.messagebox.showinfo(title="File Selected", message=filename)
+            breath_rate, apnea_count, time, flow = analysis_driver(filename)
+            breathrate_value.configure(text=breath_rate)
+            if (apnea_count >= 2):
+                apnea_value.configure(text=apnea_count, foreground="red")
+            else:
+                apnea_value.configure(text=apnea_count, foreground="black")
+            a = fig.add_subplot(111)
+            a.plot(time, flow)
+            a.set_xlabel('Time (seconds)')
+            a.set_ylabel('Flow (cubic meters per second)')
+            canvas = FigureCanvasTkAgg(fig, root)
+            canvas.draw()
+            canvas.get_tk_widget().grid(column=0, row=8, columnspan=100)
 
     def query_server():
         """
