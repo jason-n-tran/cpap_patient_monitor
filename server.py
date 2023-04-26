@@ -270,7 +270,10 @@ def update_patient(room_number, in_data, date):
     patient entry in the database from the room number. It then
     updates the information stored based on whether a patient name was entered
     or if CPAP calculated data was entered or if both were entered. The
-    database is hosted by mongoDB.
+    database is hosted by mongoDB. If the patient medical record number is
+    different from the one in the database for the specified room, the old
+    patient information is deleted and a new patient is created for the most
+    recent patient that is in that room.
     Parameters
     ----------
     room_number : integer
@@ -292,7 +295,10 @@ def update_patient(room_number, in_data, date):
     """
     x = Patient.objects.raw({"_id": room_number}).first()
     if (x.patient_mrn != in_data["patient_mrn"]):
-        x.patient_mrn = in_data["patient_mrn"]
+        x.delete()
+        patient = new_patient_to_db(in_data, date)
+        # x.patient_mrn = in_data["patient_mrn"]
+        return patient
     if (in_data["patient_name"] != ""):
         if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
             x.patient_name = in_data["patient_name"]
