@@ -265,20 +265,21 @@ def set_up_window():
         global cpap_calculated
         cpap_calculated = True
         filename = fd.askopenfilename()
-        tk.messagebox.showinfo(title="File Selected", message=filename)
-        breath_rate, apnea_count, time, flow = analysis_driver(filename)
-        breathrate_value.configure(text=breath_rate)
-        if (apnea_count >= 2):
-            apnea_value.configure(text=apnea_count, foreground="red")
-        else:
-            apnea_value.configure(text=apnea_count, foreground="black")
-        a = fig.add_subplot(111)
-        a.plot(time, flow)
-        a.set_xlabel('Time (seconds)')
-        a.set_ylabel('Flow (cubic meters per second)')
-        canvas = FigureCanvasTkAgg(fig, root)
-        canvas.draw()
-        canvas.get_tk_widget().grid(column=0, row=8, columnspan=100)
+        if (filename != ""):
+            tk.messagebox.showinfo(title="File Selected", message=filename)
+            breath_rate, apnea_count, time, flow = analysis_driver(filename)
+            breathrate_value.configure(text=breath_rate)
+            if (apnea_count >= 2):
+                apnea_value.configure(text=apnea_count, foreground="red")
+            else:
+                apnea_value.configure(text=apnea_count, foreground="black")
+            a = fig.add_subplot(111)
+            a.plot(time, flow)
+            a.set_xlabel('Time (seconds)')
+            a.set_ylabel('Flow (cubic meters per second)')
+            canvas = FigureCanvasTkAgg(fig, root)
+            canvas.draw()
+            canvas.get_tk_widget().grid(column=0, row=8, columnspan=100)
 
     def query_server():
         """
