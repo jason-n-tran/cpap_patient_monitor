@@ -80,16 +80,41 @@ def test_current_time():
                             "CPAP_pressure": 10,
                             "breath_rate": 10.0,
                             "apnea_count": 10,
-                            "flow_image": ""}, "2023-04-26 00:00:00")])
+                            "flow_image": ""}, "2023-04-26 00:00:00"),
+                          ({"patient_name": "",
+                            "patient_mrn": 101,
+                            "room_number": 101,
+                            "CPAP_pressure": "",
+                            "breath_rate": "",
+                            "apnea_count": "",
+                            "flow_image": ""}, "2023-04-26 00:00:00"),
+                          ({"patient_name": "Jason",
+                            "patient_mrn": 102,
+                            "room_number": 102,
+                            "CPAP_pressure": "",
+                            "breath_rate": "",
+                            "apnea_count": "",
+                            "flow_image": ""}, "2023-04-26 00:00:00"),
+                          ({"patient_name": "",
+                            "patient_mrn": 103,
+                            "room_number": 103,
+                            "CPAP_pressure": 10,
+                            "breath_rate": 10.0,
+                            "apnea_count": 10,
+                            "flow_image": ""}, "2023-04-26 00:00:00"),
+                          ])
 def test_add_patient_to_db(in_data, date):
     from server import new_patient_to_db
     answer0 = new_patient_to_db(in_data, date)
-    answer1 = Patient.objects.raw({"_id": in_data["patient_mrn"]}).first()
+    answer1 = Patient.objects.raw({"_id": in_data["room_number"]}).first()
     assert answer0 == answer1
 
 
 @pytest.mark.parametrize("patient_id, expected",
                          [(100, True),
+                          (101, True),
+                          (102, True),
+                          (103, True),
                           (234, False)
                           ])
 def test_does_patient_exist_in_db(patient_id, expected):
@@ -106,11 +131,35 @@ def test_does_patient_exist_in_db(patient_id, expected):
                             "CPAP_pressure": 11,
                             "breath_rate": 10.1,
                             "apnea_count": 11,
+                            "flow_image": ""}, "2023-04-26 00:00:01"),
+                          (101,
+                           {"patient_name": "Tran",
+                            "patient_mrn": 101,
+                            "room_number": 101,
+                            "CPAP_pressure": 11,
+                            "breath_rate": 10.1,
+                            "apnea_count": 11,
+                            "flow_image": ""}, "2023-04-26 00:00:01"),
+                          (102,
+                           {"patient_name": "",
+                            "patient_mrn": 102,
+                            "room_number": 102,
+                            "CPAP_pressure": 11,
+                            "breath_rate": 10.1,
+                            "apnea_count": 11,
+                            "flow_image": ""}, "2023-04-26 00:00:01"),
+                          (103,
+                           {"patient_name": "Tran",
+                            "patient_mrn": 301,
+                            "room_number": 103,
+                            "CPAP_pressure": "",
+                            "breath_rate": "",
+                            "apnea_count": "",
                             "flow_image": ""}, "2023-04-26 00:00:01")])
 def test_update_patient(mrn, in_data, date):
     from server import update_patient
     answer0 = update_patient(mrn, in_data, date)
-    answer1 = Patient.objects.raw({"_id": in_data["patient_mrn"]}).first()
+    answer1 = Patient.objects.raw({"_id": in_data["room_number"]}).first()
     answer1.delete()
     assert answer0 == answer1
 
@@ -186,7 +235,7 @@ def test_add_patient_driver(in_data, msg, status):
 
 @pytest.mark.parametrize("room, cpap, result, code",
                          [(123, 10, 10, 200),
-                          (234, "ten", False, 400)
+                          (234, 10, "Patient not in database", 400)
                           ])
 def test_get_pressure_driver(room, cpap, result, code):
     from server import get_pressure_driver, post_new_cpap_pressure
@@ -207,4 +256,5 @@ def test_get_pressure(room, cpap, pressure):
     cpap_pressure_updates.clear()
     post_new_cpap_pressure(room, cpap)
     answer = get_pressure(room)
+    Patient.objects.raw({"_id": room}).first().delete()
     assert answer == pressure

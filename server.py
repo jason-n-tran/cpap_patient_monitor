@@ -167,7 +167,7 @@ def validate_input_data_generic(in_data, expected_keys, expected_types):
     return True
 
 
-def does_patient_exist_in_db(mrn):
+def does_patient_exist_in_db(room_number):
     """Determines whether a patient exists in the database based on a given id
     number
     This function accepts a patient id (medical record number) as an input
@@ -178,15 +178,15 @@ def does_patient_exist_in_db(mrn):
     in the database.  If the record does exist, the function will return True.
     Parameters
     ----------
-    mrn : int
-        patient medical record number to search for in the database
+    room_number : int
+        patient room number to search for in the database
     Returns
     ----------
     bool :
         True if patient exists in database, False otherwise
     """
     try:
-        db_item = Patient.objects.raw({"_id": mrn}).first()
+        db_item = Patient.objects.raw({"_id": room_number}).first()
     except pymodm_errors.DoesNotExist:
         return False
     return True
@@ -263,18 +263,18 @@ def new_patient_to_db(in_data, date):
     return saved_patient
 
 
-def update_patient(mrn, in_data, date):
+def update_patient(room_number, in_data, date):
     """
     Updates existing patient information in database
     This function receives a patient dictionary then finds the corresponding
-    patient entry in the database from the medical record number. It then
+    patient entry in the database from the room number. It then
     updates the information stored based on whether a patient name was entered
     or if CPAP calculated data was entered or if both were entered. The
     database is hosted by mongoDB.
     Parameters
     ----------
-    mrn : integer
-        patient's medical record number
+    room_number : integer
+        patient's room number
     patient_dic : dictioanry
         Patient dictionary in the format:
         {"patient_name": <patient_name>,
@@ -290,7 +290,9 @@ def update_patient(mrn, in_data, date):
     -------
         None
     """
-    x = Patient.objects.raw({"_id": mrn}).first()
+    x = Patient.objects.raw({"_id": room_number}).first()
+    if (x.patient_mrn != in_data["patient_mrn"]):
+        x.patient_mrn = in_data["patient_mrn"]
     if (in_data["patient_name"] != ""):
         if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
             x.patient_name = in_data["patient_name"]
@@ -322,8 +324,8 @@ def get_pressure_handler(room_number):
     retrieve the data for this function to return.
     Parameters
     ----------
-    mrn : integer or string
-        patient's medical record number
+    room_number : integer or string
+        patient's room number
     Returns
     -------
     answer : string
@@ -357,7 +359,7 @@ def get_pressure_driver(room_number):
     # Validate input
     mrn_validation = does_patient_exist_in_db(int(room_number))
     if mrn_validation is not True:
-        return False, 400
+        return "Patient not in database", 400
     # Do the work
     pressure = get_pressure(int(room_number))
     # Return an answer
@@ -366,13 +368,13 @@ def get_pressure_driver(room_number):
 
 def get_pressure(room_number):
     """
-    Obtains pressure data for specified patient.
-    Takes a given patient's medical record number and obtains that patient's
+    Obtains pressure data for specified room_number.
+    Takes a given patient's room number and obtains that patient's
     latest CPAP pressure value from the array in the database.
     Parameters
     ----------
-    mrn : integer
-        patient medical record number
+    room_number : integer
+        patient room number
     Returns
     -------
     integer
