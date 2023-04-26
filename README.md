@@ -23,6 +23,7 @@ Patient Class
 where "room_number" is the primary key and can be accessed with the "_id" key
 
 ## Video Demo link
+https://youtu.be/B9lVKJmEYy4
 
 ## Server Routes
 The server is deployed on `vcm-32579.vm.duke.edu:5000`
