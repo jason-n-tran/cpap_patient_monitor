@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Flask API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sleeplab-api
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=server.py
+      - FLASK_ENV=production
+    volumes:
+      - patients_data:/app/data
+    command: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 server:app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sleeplab-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Streamlit Web Interface
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sleeplab-web
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=true
+      - API_URL=http://api:5000
+    depends_on:
+      api:
+        condition: service_healthy
+    command: streamlit run patient_streamlit.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - sleeplab-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  patients_data:
+    driver: local
+
+networks:
+  sleeplab-network:
+    driver: bridge

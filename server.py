@@ -1,12 +1,9 @@
 from flask import Flask, request, jsonify
-import ssl
-from pymodm import connect
-from PatientModel import Patient
-from pymodm import errors as pymodm_errors
-from secret import mongodb_acct, mongodb_pswd
+from PatientModel import Patient, Session
 import requests
 import logging
 from datetime import datetime
+import json
 
 
 # Create an instance of the Flask server
@@ -20,14 +17,11 @@ cpap_pressure_updates = {}
 def init_server():
     """ Performs set-up functions before starting server
     This functions performs any needed set-up steps required for server
-    operation.  The logging system is configured.  A connection is created
-    to the MongoDB database.
+    operation.  The logging system is configured.  The SQLite database
+    is initialized through the PatientModel import.
     """
     logging.basicConfig(filename="log_file.log", filemode='w',
                         level=logging.INFO)
-    connect("mongodb+srv://{}:{}@cluster0.ja8jerw.mongodb.net/final"
-            "?retryWrites=true&w=majority"
-            .format(mongodb_acct, mongodb_pswd), ssl_cert_reqs=ssl.CERT_NONE)
 
 
 @app.route("/add_patient", methods=["POST"])
@@ -170,11 +164,10 @@ def validate_input_data_generic(in_data, expected_keys, expected_types):
 def does_patient_exist_in_db(room_number):
     """Determines whether a patient exists in the database based on a given id
     number
-    This function accepts a patient id (medical record number) as an input
-    parameter.  It then queries the MongoDB database, using the patient id
-    as the primary key search parameter.  If the record does not exist, an
-    exception will be thrown which is captured in a try/except block, allowing
-    the function to return False, indicating that the record does not exist
+    This function accepts a patient room number as an input
+    parameter.  It then queries the SQLite database, using the room number
+    as the primary key search parameter.  If the record does not exist,
+    the function will return False, indicating that the record does not exist
     in the database.  If the record does exist, the function will return True.
     Parameters
     ----------
@@ -185,11 +178,13 @@ def does_patient_exist_in_db(room_number):
     bool :
         True if patient exists in database, False otherwise
     """
+    session = Session()
     try:
-        db_item = Patient.objects.raw({"_id": room_number}).first()
-    except pymodm_errors.DoesNotExist:
-        return False
-    return True
+        patient = session.query(Patient).filter_by(
+            room_number=room_number).first()
+        return patient is not None
+    finally:
+        session.close()
 
 
 def current_time():
@@ -210,10 +205,11 @@ def new_patient_to_db(in_data, date):
     """
     Adds a new patient dictionary to the database
     This function receives a patient dictionary then adds an entry to the
-    database under the key of the patient's MRN while converting the MRN
+    database under the key of the patient's room number while converting
+    the MRN
     and age entries to integers. The information sent to the database depends
     on whether a patient name was entered or if CPAP calculated data was
-    entered or if both were entered. The database is hosted by mongoDB.
+    entered or if both were entered. The database uses SQLite.
     Parameters
     ----------
     patient_dic : dictioanry
@@ -229,38 +225,51 @@ def new_patient_to_db(in_data, date):
         current time formatted as "Year-month-day hour:minute:seconds"
     Returns
     -------
-        None
+        Patient object
     """
-    if (in_data["patient_name"] != ""):
-        if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
-            new_patient = Patient(patient_mrn=in_data["patient_mrn"],
-                                  room_number=in_data["room_number"],
-                                  patient_name=in_data["patient_name"],
-                                  CPAP_pressure=[int(in_data["CPAP_pressure"]
-                                                     )],
-                                  breath_rate=[float(in_data["breath_rate"])],
-                                  apnea_count=[int(in_data["apnea_count"])],
-                                  flow_image=[str(in_data["flow_image"])],
-                                  timestamp=[date])
+    session = Session()
+    try:
+        if (in_data["patient_name"] != ""):
+            if (in_data["CPAP_pressure"] !=
+                    "" and in_data["breath_rate"] != ""):
+                new_patient = Patient(
+                    patient_mrn=in_data["patient_mrn"],
+                    room_number=in_data["room_number"],
+                    patient_name=in_data["patient_name"],
+                    CPAP_pressure=json.dumps([int(in_data["CPAP_pressure"])]),
+                    breath_rate=json.dumps([float(in_data["breath_rate"])]),
+                    apnea_count=json.dumps([int(in_data["apnea_count"])]),
+                    flow_image=json.dumps([str(in_data["flow_image"])]),
+                    timestamp=json.dumps([date])
+                )
+            else:
+                new_patient = Patient(
+                    patient_mrn=in_data["patient_mrn"],
+                    room_number=in_data["room_number"],
+                    patient_name=in_data["patient_name"]
+                )
         else:
-            new_patient = Patient(patient_mrn=in_data["patient_mrn"],
-                                  room_number=in_data["room_number"],
-                                  patient_name=in_data["patient_name"])
-    else:
-        if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
-            new_patient = Patient(patient_mrn=in_data["patient_mrn"],
-                                  room_number=in_data["room_number"],
-                                  CPAP_pressure=[int(in_data["CPAP_pressure"]
-                                                     )],
-                                  breath_rate=[float(in_data["breath_rate"])],
-                                  apnea_count=[int(in_data["apnea_count"])],
-                                  flow_image=[str(in_data["flow_image"])],
-                                  timestamp=[date])
-        else:
-            new_patient = Patient(patient_mrn=in_data["patient_mrn"],
-                                  room_number=in_data["room_number"])
-    saved_patient = new_patient.save()
-    return saved_patient
+            if (in_data["CPAP_pressure"] !=
+                    "" and in_data["breath_rate"] != ""):
+                new_patient = Patient(
+                    patient_mrn=in_data["patient_mrn"],
+                    room_number=in_data["room_number"],
+                    CPAP_pressure=json.dumps([int(in_data["CPAP_pressure"])]),
+                    breath_rate=json.dumps([float(in_data["breath_rate"])]),
+                    apnea_count=json.dumps([int(in_data["apnea_count"])]),
+                    flow_image=json.dumps([str(in_data["flow_image"])]),
+                    timestamp=json.dumps([date])
+                )
+            else:
+                new_patient = Patient(
+                    patient_mrn=in_data["patient_mrn"],
+                    room_number=in_data["room_number"]
+                )
+        session.add(new_patient)
+        session.commit()
+        return new_patient
+    finally:
+        session.close()
 
 
 def update_patient(room_number, in_data, date):
@@ -270,7 +279,7 @@ def update_patient(room_number, in_data, date):
     patient entry in the database from the room number. It then
     updates the information stored based on whether a patient name was entered
     or if CPAP calculated data was entered or if both were entered. The
-    database is hosted by mongoDB. If the patient medical record number is
+    database uses SQLite. If the patient medical record number is
     different from the one in the database for the specified room, the old
     patient information is deleted and a new patient is created for the most
     recent patient that is in that room.
@@ -291,33 +300,71 @@ def update_patient(room_number, in_data, date):
         current time formatted as "Year-month-day hour:minute:seconds"
     Returns
     -------
-        None
+        Patient object
     """
-    x = Patient.objects.raw({"_id": room_number}).first()
-    if (x.patient_mrn != in_data["patient_mrn"]):
-        x.delete()
-        patient = new_patient_to_db(in_data, date)
-        # x.patient_mrn = in_data["patient_mrn"]
-        return patient
-    if (in_data["patient_name"] != ""):
-        if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
-            x.patient_name = in_data["patient_name"]
-            x.CPAP_pressure.append(int(in_data["CPAP_pressure"]))
-            x.breath_rate.append(float(in_data["breath_rate"]))
-            x.apnea_count.append(int(in_data["apnea_count"]))
-            x.flow_image.append(str(in_data["flow_image"]))
-            x.timestamp.append(date)
+    session = Session()
+    try:
+        x = session.query(Patient).filter_by(room_number=room_number).first()
+        if (x.patient_mrn != in_data["patient_mrn"]):
+            session.delete(x)
+            session.commit()
+            patient = new_patient_to_db(in_data, date)
+            return patient
+        if (in_data["patient_name"] != ""):
+            if (in_data["CPAP_pressure"] !=
+                    "" and in_data["breath_rate"] != ""):
+                x.patient_name = in_data["patient_name"]
+                cpap_list = json.loads(
+                    x.CPAP_pressure) if x.CPAP_pressure else []
+                cpap_list.append(int(in_data["CPAP_pressure"]))
+                x.CPAP_pressure = json.dumps(cpap_list)
+
+                breath_list = json.loads(
+                    x.breath_rate) if x.breath_rate else []
+                breath_list.append(float(in_data["breath_rate"]))
+                x.breath_rate = json.dumps(breath_list)
+
+                apnea_list = json.loads(x.apnea_count) if x.apnea_count else []
+                apnea_list.append(int(in_data["apnea_count"]))
+                x.apnea_count = json.dumps(apnea_list)
+
+                flow_list = json.loads(x.flow_image) if x.flow_image else []
+                flow_list.append(str(in_data["flow_image"]))
+                x.flow_image = json.dumps(flow_list)
+
+                time_list = json.loads(x.timestamp) if x.timestamp else []
+                time_list.append(date)
+                x.timestamp = json.dumps(time_list)
+            else:
+                x.patient_name = in_data["patient_name"]
         else:
-            x.patient_name = in_data["patient_name"]
-    else:
-        if (in_data["CPAP_pressure"] != "" and in_data["breath_rate"] != ""):
-            x.CPAP_pressure.append(int(in_data["CPAP_pressure"]))
-            x.breath_rate.append(float(in_data["breath_rate"]))
-            x.apnea_count.append(int(in_data["apnea_count"]))
-            x.flow_image.append(str(in_data["flow_image"]))
-            x.timestamp.append(date)
-    saved_patient = x.save()
-    return saved_patient
+            if (in_data["CPAP_pressure"] !=
+                    "" and in_data["breath_rate"] != ""):
+                cpap_list = json.loads(
+                    x.CPAP_pressure) if x.CPAP_pressure else []
+                cpap_list.append(int(in_data["CPAP_pressure"]))
+                x.CPAP_pressure = json.dumps(cpap_list)
+
+                breath_list = json.loads(
+                    x.breath_rate) if x.breath_rate else []
+                breath_list.append(float(in_data["breath_rate"]))
+                x.breath_rate = json.dumps(breath_list)
+
+                apnea_list = json.loads(x.apnea_count) if x.apnea_count else []
+                apnea_list.append(int(in_data["apnea_count"]))
+                x.apnea_count = json.dumps(apnea_list)
+
+                flow_list = json.loads(x.flow_image) if x.flow_image else []
+                flow_list.append(str(in_data["flow_image"]))
+                x.flow_image = json.dumps(flow_list)
+
+                time_list = json.loads(x.timestamp) if x.timestamp else []
+                time_list.append(date)
+                x.timestamp = json.dumps(time_list)
+        session.commit()
+        return x
+    finally:
+        session.close()
 
 
 @app.route("/CPAP_query/<room_number>", methods=["GET"])
@@ -461,6 +508,85 @@ def validate_new_cpap_pressure_inputs(room_number, new_value):
     return True
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    """
+    Health check endpoint for Docker and monitoring
+    Returns a simple JSON response indicating the service is running.
+
+    Returns
+    -------
+    dict
+        Health status message
+    integer
+        200 status code
+    """
+    return jsonify({"status": "healthy", "service": "sleep-lab-api"}), 200
+
+
+@app.route("/get_all_patients", methods=["GET"])
+def get_all_patients_handler():
+    """
+    Flask Handler for /get_all_patients route
+    GET route to retrieve information about all patients in the database.
+    This route queries the database for all patient records and returns them
+    as a JSON array with all patient information including deserialized arrays.
+
+    Returns
+    -------
+    answer : list
+        List of patient dictionaries with all information
+    status_code : integer
+        200 if successful and 400 if failed
+    """
+    answer, status_code = get_all_patients_driver()
+    return jsonify(answer), status_code
+
+
+def get_all_patients_driver():
+    """
+    Implements the 'get_all_patients' route
+    This function retrieves all patient records from the database and formats
+    them into a list of dictionaries. Each dictionary contains all patient
+    information with JSON arrays deserialized into Python lists.
+
+    Returns
+    -------
+    list
+        List of patient dictionaries, or error message string
+    integer
+        200 if successful and 400 if failed
+    """
+    session = Session()
+    try:
+        patients = session.query(Patient).all()
+        patient_list = []
+        for patient in patients:
+            patient_dict = {
+                "room_number": patient.room_number,
+                "patient_mrn": patient.patient_mrn,
+                "patient_name": (
+                    patient.patient_name if patient.patient_name
+                    else "Not provided"
+                ),
+                "CPAP_pressure": json.loads(
+                    patient.CPAP_pressure) if patient.CPAP_pressure else [],
+                "breath_rate": json.loads(
+                    patient.breath_rate) if patient.breath_rate else [],
+                "apnea_count": json.loads(
+                    patient.apnea_count) if patient.apnea_count else [],
+                "flow_image": json.loads(
+                    patient.flow_image) if patient.flow_image else [],
+                "timestamp": json.loads(
+                        patient.timestamp) if patient.timestamp else []}
+            patient_list.append(patient_dict)
+        return patient_list, 200
+    except Exception as e:
+        return "Error retrieving patients: {}".format(str(e)), 400
+    finally:
+        session.close()
+
+
 if __name__ == "__main__":
     init_server()
-    app.run()
+    app.run(host='0.0.0.0', port=5000, debug=False)

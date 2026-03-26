@@ -1,12 +1,24 @@
-from pymodm import MongoModel, fields
+from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+Base = declarative_base()
 
 
-class Patient(MongoModel):
-    patient_mrn = fields.IntegerField()
-    room_number = fields.IntegerField(primary_key=True)
-    patient_name = fields.CharField()
-    CPAP_pressure = fields.ListField()
-    breath_rate = fields.ListField()
-    apnea_count = fields.ListField()
-    flow_image = fields.ListField()
-    timestamp = fields.ListField()
+class Patient(Base):
+    __tablename__ = 'patients'
+
+    room_number = Column(Integer, primary_key=True)
+    patient_mrn = Column(Integer)
+    patient_name = Column(String)
+    CPAP_pressure = Column(Text)  # Store as JSON string
+    breath_rate = Column(Text)  # Store as JSON string
+    apnea_count = Column(Text)  # Store as JSON string
+    flow_image = Column(Text)  # Store as JSON string
+    timestamp = Column(Text)  # Store as JSON string
+
+
+# Database setup
+engine = create_engine('sqlite:///patients.db')
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)

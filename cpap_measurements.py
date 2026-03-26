@@ -67,7 +67,7 @@ def ADC_to_Pressure(line):
         if i == 0:
             data[i] = float(data[i])
         else:
-            data[i] = 98.0665*(25.4/(14745 - 1638))*(int(data[i]) - 1638)
+            data[i] = 98.0665 * (25.4 / (14745 - 1638)) * (int(data[i]) - 1638)
     return data
 
 
@@ -97,12 +97,13 @@ def Pressure_to_Flow(data):
     p2 = data[1]
     p1_ins = data[2]
     p1_exp = data[3]
-    A1 = np.pi*(0.0075)**2
-    A2 = np.pi*(0.006)**2
+    A1 = np.pi * (0.0075)**2
+    A2 = np.pi * (0.006)**2
     if (p1_ins >= p1_exp):
-        flow = A1*np.sqrt(2*(p1_ins - p2) / (1.199 * (((A1/A2)**2)-1)))
+        flow = A1 * np.sqrt(2 * (p1_ins - p2) / (1.199 * (((A1 / A2)**2) - 1)))
     if (p1_ins < p1_exp):
-        flow = -A1*np.sqrt(2*(p1_exp - p2) / (1.199 * (((A1/A2)**2)-1)))
+        flow = -A1 * np.sqrt(2 * (p1_exp - p2) /
+                             (1.199 * (((A1 / A2)**2) - 1)))
     return data[0], flow
 
 
@@ -143,10 +144,10 @@ def find_breaths(time, flow):
     breaths = 1
     breath_times = []
     pos_breaths = dict()
-    for i in range(len(ins_peaks)-1):
+    for i in range(len(ins_peaks) - 1):
         for z in exp_peaks:
             if ((time[ins_peaks[i]] < time[z]) and
-                    (time[z] < time[ins_peaks[i+1]])):
+                    (time[z] < time[ins_peaks[i + 1]])):
                 breaths += 1
                 pos_breaths.update({flow[ins_peaks[i]]: i})
                 actual_peak = max(pos_breaths.keys())
@@ -155,7 +156,7 @@ def find_breaths(time, flow):
                 break
             else:
                 pos_breaths.update({flow[ins_peaks[i]]: i})
-    breath_times.append(time[ins_peaks[i+1]])
+    breath_times.append(time[ins_peaks[i + 1]])
 #    for z in breath_times:
 #        plt.axvline(z, color = "r")
 #    plt.show(block=True)
@@ -178,7 +179,7 @@ def calculate_duration(time):
     duration : float
         Time duration of data in seconds
     """
-    duration = time[-1]-time[0]
+    duration = time[-1] - time[0]
     return duration
 
 
@@ -201,7 +202,7 @@ def calculate_breath_rate(duration, breaths):
     breath_rate : float
         Average breathing rate from data in breaths per minute
     """
-    breath_rate = breaths/(duration/60)
+    breath_rate = breaths / (duration / 60)
     return breath_rate
 
 
@@ -223,8 +224,8 @@ def count_apnea(breath_times):
         Number of apnea events in data
     """
     apnea_count = 0
-    for i in range(len(breath_times)-1):
-        if (breath_times[i+1]-breath_times[i] > 10):
+    for i in range(len(breath_times) - 1):
+        if (breath_times[i + 1] - breath_times[i] > 10):
             apnea_count += 1
     return apnea_count
 

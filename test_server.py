@@ -1,18 +1,11 @@
 import pytest
-import ssl
-from pymodm import connect
-from PatientModel import Patient
+from PatientModel import Patient, Session, Base, engine
 from datetime import datetime
-from secret import mongodb_acct, mongodb_pswd
-
-connect("mongodb+srv://{}:{}@cluster0.ja8jerw.mongodb.net/final"
-        "?retryWrites=true&w=majority"
-        .format(mongodb_acct, mongodb_pswd), ssl_cert_reqs=ssl.CERT_NONE)
 
 
-results = Patient.objects.raw({})
-for item in results:
-    item.delete()
+# Clean up database for tests
+Base.metadata.drop_all(engine)
+Base.metadata.create_all(engine)
 
 
 @pytest.mark.parametrize("in_data, expected_keys, expected_types, Error",
@@ -106,8 +99,16 @@ def test_current_time():
 def test_add_patient_to_db(in_data, date):
     from server import new_patient_to_db
     answer0 = new_patient_to_db(in_data, date)
-    answer1 = Patient.objects.raw({"_id": in_data["room_number"]}).first()
-    assert answer0 == answer1
+    session = Session()
+    try:
+        answer1 = session.query(Patient).filter_by(
+            room_number=in_data["room_number"]
+        ).first()
+        assert answer1 is not None
+        assert int(in_data["patient_mrn"]) == answer1.patient_mrn
+        assert int(in_data["room_number"]) == answer1.room_number
+    finally:
+        session.close()
 
 
 @pytest.mark.parametrize("patient_id, expected",
@@ -159,9 +160,17 @@ def test_does_patient_exist_in_db(patient_id, expected):
 def test_update_patient(mrn, in_data, date):
     from server import update_patient
     answer0 = update_patient(mrn, in_data, date)
-    answer1 = Patient.objects.raw({"_id": in_data["room_number"]}).first()
-    answer1.delete()
-    assert answer0 == answer1
+    session = Session()
+    try:
+        answer1 = session.query(Patient).filter_by(
+            room_number=in_data["room_number"]
+        ).first()
+        assert answer1 is not None
+        assert int(in_data["patient_mrn"]) == answer1.patient_mrn
+        session.delete(answer1)
+        session.commit()
+    finally:
+        session.close()
 
 
 @pytest.mark.parametrize("in_data, msg, status",
@@ -256,5 +265,12 @@ def test_get_pressure(room, cpap, pressure):
     cpap_pressure_updates.clear()
     post_new_cpap_pressure(room, cpap)
     answer = get_pressure(room)
-    Patient.objects.raw({"_id": room}).first().delete()
+    session = Session()
+    try:
+        patient = session.query(Patient).filter_by(room_number=room).first()
+        if patient is not None:
+            session.delete(patient)
+            session.commit()
+    finally:
+        session.close()
     assert answer == pressure

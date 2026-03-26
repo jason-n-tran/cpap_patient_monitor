@@ -9,3 +9,7 @@ Pillow
 numpy
 matplotlib
 scipy
+streamlit
+pandas
+sqlalchemy
+gunicorn

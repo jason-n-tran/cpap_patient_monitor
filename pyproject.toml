@@ -1,0 +1,18 @@
+[project]
+name = "my-cool-project"
+version = "0.1.0"
+dependencies = [
+    "dnspython>=2.8.0",
+    "flask>=3.1.2",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "pillow>=12.1.0",
+    "pymodm>=0.4.3",
+    "pytest>=9.0.2",
+    "pytest-pycodestyle>=2.5.0",
+    "requests>=2.32.5",
+    "scipy>=1.17.0",
+    "sqlalchemy>=2.0.46",
+    "streamlit>=1.53.1",
+    "testfixtures>=10.0.0",
+]
