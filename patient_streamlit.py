@@ -212,6 +212,13 @@ def upload_to_server(mrn, room_number, patient_name, cpap_pressure, cpap_data):
     if not valid:
         return False, msg
 
+    # Check for duplicate MRN in different room
+    success, data = get_all_patients()
+    if success:
+        for patient in data:
+            if str(patient['patient_mrn']) == str(mrn) and str(patient['room_number']) != str(room_number):
+                return False, f"MRN {mrn} is already assigned to Room {patient['room_number']}"
+    
     # Prepare data
     if cpap_data:
         breath_rate = cpap_data['breath_rate']
@@ -435,45 +442,29 @@ def main():
         # CPAP Data Analysis Section
         st.header("CPAP Data Analysis")
 
-        # Add option to use sample data or upload file
-        data_source = st.radio(
-            "Select data source:",
-            ["Use Sample Data", "Upload Your Own File"],
-            horizontal=True,
-            key="data_source_radio"
-        )
-
-        uploaded_file = None
+        # Load sample data
+        st.subheader("Load Sample Data")
+        sample_dir = "sample_data"
         selected_sample = None
 
-        if data_source == "Use Sample Data":
-            # Get list of sample files
-            sample_dir = "sample_data"
-            if os.path.exists(sample_dir):
-                sample_files = [f for f in os.listdir(
-                    sample_dir) if f.endswith('.txt')]
-                sample_files.sort()
+        if os.path.exists(sample_dir):
+            sample_files = [f for f in os.listdir(
+                sample_dir) if f.endswith('.txt')]
+            sample_files.sort()
 
-                if sample_files:
-                    selected_sample = st.selectbox(
-                        "Select a sample patient file:",
-                        sample_files,
-                        key="sample_file_selector"
-                    )
+            if sample_files:
+                selected_sample = st.selectbox(
+                    "Select a sample patient file:",
+                    sample_files,
+                    key="sample_file_selector"
+                )
 
-                    if selected_sample:
-                        st.info(f"📁 Selected: {selected_sample}")
-                else:
-                    st.warning("No sample files found in sample_data folder")
+                if selected_sample:
+                    st.info(f"📁 Selected: {selected_sample}")
             else:
-                st.warning("sample_data folder not found")
+                st.warning("No sample files found in sample_data folder")
         else:
-            uploaded_file = st.file_uploader(
-                "Upload CPAP Data File",
-                type=['csv', 'txt'],
-                help="Select a CPAP data file for analysis",
-                key="cpap_file_uploader"
-            )
+            st.warning("sample_data folder not found")
 
         # Track if we've processed this specific file
         if 'last_processed_file' not in st.session_state:
@@ -535,25 +526,6 @@ def main():
                 else:
                     st.info("This file has already been loaded")
 
-        # Process uploaded files
-        if uploaded_file is not None:
-            # Check if this is a new file or the same file
-            file_id = uploaded_file.name + str(uploaded_file.size)
-
-            if st.session_state.last_processed_file != file_id:
-                with st.spinner("Processing CPAP data..."):
-                    cpap_data = process_cpap_file(uploaded_file)
-                    if cpap_data:
-                        st.session_state.cpap_data = cpap_data
-                        st.session_state.last_processed_file = file_id
-                        st.success(f"✅ File processed: {uploaded_file.name}")
-                        st.rerun()
-                    else:
-                        st.error("Failed to process CPAP data file")
-            else:
-                # File already processed, just show it was loaded
-                st.info(f"📁 Current file: {uploaded_file.name}")
-
         # Display CPAP analysis results
         if st.session_state.cpap_data:
             col1, col2 = st.columns(2)
@@ -591,11 +563,12 @@ def main():
 
         st.divider()
 
-        # Upload button
+        # Upload button - disabled until CPAP data is loaded
         if st.button(
             "📤 Upload to Server",
             type="primary",
-                use_container_width=True):
+                use_container_width=True,
+                disabled=st.session_state.cpap_data is None):
             with st.spinner("Uploading data..."):
                 success, message = upload_to_server(
                     st.session_state.mrn,
@@ -674,7 +647,7 @@ def main():
                             def highlight_apnea(row):
                                 if row['Apnea Events'] >= 2:
                                     return [
-                                        'background-color: #ffe6e6'] * len(row)
+                                        'background-color: #ff6b6b; color: white; font-weight: bold'] * len(row)
                                 return [''] * len(row)
 
                             styled_df = df.style.apply(highlight_apnea, axis=1)
