@@ -471,7 +471,7 @@ def main():
             st.session_state.last_processed_file = None
 
         # Process button for sample files
-        if selected_sample and data_source == "Use Sample Data":
+        if selected_sample:
             if st.button("📊 Load Sample Data", use_container_width=True):
                 sample_path = os.path.join("sample_data", selected_sample)
                 file_id = selected_sample + str(os.path.getsize(sample_path))
