@@ -1,6 +1,6 @@
 # Sleep Lab Monitoring System
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live_Preview-0078D4?logo=google-chrome&logoColor=white)](http://cpap-cpap-o85eb8-d30a0e-72-61-1-6.traefik.me)
+[![Live Demo](https://img.shields.io/badge/Demo-Live_Preview-0078D4?logo=google-chrome&logoColor=white)](https://cpap-cpap-o85eb8-d30a0e-72-61-1-6.traefik.me)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-REST%20API-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
