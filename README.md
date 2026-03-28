@@ -1,5 +1,6 @@
 # Sleep Lab Monitoring System
 
+[![Live Demo](https://img.shields.io/badge/Demo-Live_Preview-0078D4?logo=google-chrome&logoColor=white)](http://cpap-cpap-o85eb8-d30a0e-72-61-1-6.traefik.me)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-REST%20API-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -30,7 +31,7 @@ A comprehensive patient monitoring system designed for sleep labs to track CPAP 
 
 ## About The Project
 
-![Project Screenshot](docs/screenshot.png)
+![Project Screenshot](Screenshot.png)
 <!-- Screenshot suggestion: A side-by-side view of the patient GUI with CPAP data graphs and the monitoring interface -->
 
 Sleep apnea affects millions of people worldwide, and effective monitoring of CPAP therapy is crucial for patient outcomes. This system was built to streamline the collection, storage, and analysis of CPAP data in sleep lab environments.
@@ -401,10 +402,3 @@ Copyright (c) 2023 Jason Tran
 
 - 📧 Email: [tran219jn@gmail.com](mailto:tran219jn@gmail.com)
 - 🌐 Website: [jasontran.pages.dev](https://jasontran.pages.dev/)
-- 💼 GitHub: [@jasontran](https://github.com/jasontran)
-
----
-
-<div align="center">
-  <sub>Built with ❤️ for better sleep health monitoring</sub>
-</div>
