@@ -216,9 +216,12 @@ def upload_to_server(mrn, room_number, patient_name, cpap_pressure, cpap_data):
     success, data = get_all_patients()
     if success:
         for patient in data:
-            if str(patient['patient_mrn']) == str(mrn) and str(patient['room_number']) != str(room_number):
-                return False, f"MRN {mrn} is already assigned to Room {patient['room_number']}"
-    
+            if (str(patient['patient_mrn']) == str(mrn) and
+                    str(patient['room_number']) != str(room_number)):
+                return False, (
+                    f"MRN {mrn} is already assigned to "
+                    f"Room {patient['room_number']}")
+
     # Prepare data
     if cpap_data:
         breath_rate = cpap_data['breath_rate']
@@ -646,8 +649,10 @@ def main():
                             # Highlight rows with apnea >= 2
                             def highlight_apnea(row):
                                 if row['Apnea Events'] >= 2:
-                                    return [
-                                        'background-color: #ff6b6b; color: white; font-weight: bold'] * len(row)
+                                    style = (
+                                        'background-color: #ff6b6b; '
+                                        'color: white; font-weight: bold')
+                                    return [style] * len(row)
                                 return [''] * len(row)
 
                             styled_df = df.style.apply(highlight_apnea, axis=1)
