@@ -6,7 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: sleeplab-api
     expose:
       - "5000"
     environment:
@@ -22,6 +21,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - dokploy-network
     logging:
       driver: "json-file"
       options:
@@ -33,7 +34,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: sleeplab-web
     expose:
       - "8501"
     environment:
@@ -55,6 +55,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    networks:
+      - dokploy-network
     logging:
       driver: "json-file"
       options:
@@ -64,3 +66,7 @@ services:
 volumes:
   patients_data:
     driver: local
+
+networks:
+  dokploy-network:
+    external: true
